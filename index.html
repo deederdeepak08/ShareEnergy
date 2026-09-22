@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShareEnergy.Co — Smart Microgrid Exchange</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #059669;
+            --primary-dark: #047857;
+            --accent-bg: #ecfdf5;
+            --text-main: #1f2937;
+        }
+
+        body.theme-buyer {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --accent-bg: #eff6ff;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f3f4f6;
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+        }
+
+        .header {
+            background: #ffffff;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .hidden { display: none !important; }
+
+        .modal-box {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 420px;
+            max-width: 90%;
+        }
+
+        .role-btn {
+            flex: 1;
+            padding: 0.6rem;
+            text-align: center;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .role-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .alert-banner {
+            background: var(--accent-bg);
+            border-left: 4px solid var(--primary);
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="theme-seller">
+
+    <!-- Registration Modal -->
+    <div id="onboardOverlay" class="overlay">
+        <div class="modal-box">
+            <h2 style="margin-top:0; color: var(--primary);" id="txtRegHeader">⚡ ShareEnergy.Co</h2>
+            <p style="color: #6b7280; font-size:0.88rem;" id="txtRegSub">Register node to enter microgrid market.</p>
+
+            <div class="form-group">
+                <label id="txtRoleLbl">Select Node Role</label>
+                <div style="display:flex; gap:0.5rem;">
+                    <div id="roleSellerBtn" class="role-btn active" onclick="setRole('SELLER')">☀️ Solar Seller</div>
+                    <div id="roleBuyerBtn" class="role-btn" onclick="setRole('BUYER')">🔋 Clean Buyer</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label id="txtNameLbl">Full Name</label>
+                <input type="text" id="regName" placeholder="e.g., Deepak Sankar">
+            </div>
+            <div class="form-group">
+                <label id="txtAddrLbl">Microgrid Address</label>
+                <input type="text" id="regAddress" placeholder="e.g., Zone-1 Madurai Microgrid">
+            </div>
+            <div class="form-group">
+                <label id="txtNodeLbl">Node ID</label>
+                <input type="text" id="regNodeId" value="Solar-House-101">
+            </div>
+
+            <button class="btn" style="width:100%;" onclick="completeRegistration()" id="btnEnter">Enter Market Exchange</button>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+        <div style="font-weight:bold; font-size:1.2rem; color:var(--primary);">⚡ ShareEnergy.Co</div>
+        <div style="display:flex; gap:1rem; align-items:center;">
+            <button class="btn btn-outline" onclick="toggleLanguage()" id="langBtn">தமிழ் (Tamil)</button>
+            <span id="userBadge" style="font-weight:700;">Not Registered</span>
+        </div>
+    </header>
+
+    <div class="container">
+        
+        <!-- Grid Tariff Comparison Banner -->
+        <div class="card" style="border-left: 5px solid var(--primary);">
+            <h4 style="margin:0; color: var(--primary);" id="txtTariffTitle">Government Grid Benchmarks (TANGEDCO)</h4>
+            <p style="margin:0.3rem 0 0 0; font-size:0.85rem; color:#4b5563;" id="txtTariffDesc">
+                EB Retail Buy Rate: <strong>₹8.00/kWh</strong> | Solar Export Feed-in Rate: <strong>₹3.00/kWh</strong>
+            </p>
+        </div>
+
+        <div id="alertBanner" class="alert-banner hidden"></div>
+
+        <!-- Order Form -->
+        <div class="card">
+            <h3 id="panelTitle">Publish Solar Energy Offer</h3>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                <div class="form-group">
+                    <label id="lblQty">Energy Quantum (kWh)</label>
+                    <input type="number" id="tradeQty" value="10.0" step="0.5">
+                </div>
+                <div class="form-group">
+                    <label id="lblPrice">Target Price per kWh (₹)</label>
+                    <input type="number" id="tradePrice" value="5.50" step="0.10">
+                </div>
+            </div>
+
+            <div style="background:var(--accent-bg); padding:0.75rem; border-radius:6px; margin-bottom:1rem; font-size:0.88rem;">
+                <div style="display:flex; justify-content:space-between;">
+                    <span id="lblGross">Gross Trade Value:</span>
+                    <strong id="estGross">₹55.00</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; color:#6b7280; font-size:0.8rem;">
+                    <span id="lblFee">Platform Convenience Fee (5%):</span>
+                    <span id="estFee">₹2.75</span>
+                </div>
+                <hr style="border:0; border-top:1px solid #d1d5db; margin:0.4rem 0;">
+                <div style="display:flex; justify-content:space-between; font-weight:700; color:var(--primary);">
+                    <span id="estNetLabel">Net Seller Payout:</span>
+                    <span id="estNetVal">₹52.25</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#047857; font-weight:bold; margin-top:0.3rem;">
+                    <span id="lblProfitGain">Profit vs Gov Export (₹3/kWh):</span>
+                    <span id="estGovGain">+₹22.25</span>
+                </div>
+            </div>
+
+            <button class="btn" style="width:100%" onclick="submitOrder()" id="actionBtn">Publish Energy Offer</button>
+        </div>
+
+        <!-- Bidirectional Smart Meter Telemetry -->
+        <div class="card" id="iotCard">
+            <h3 id="txtIotTitle">Bidirectional Smart Meter & Microgrid Regulator</h3>
+            <p style="font-size: 0.85rem; color: #6b7280;" id="txtIotDesc">
+                Simulates live voltage and bi-directional flow. When total voltage or power exceeds circuit limits (> 240V), automatic power factor step-down logic throttles voltage down to 230V.
+            </p>
+            <div style="display:flex; gap:1.5rem; background:#f9fafb; padding:0.75rem; border-radius:6px; margin-bottom:0.75rem;">
+                <div>Voltage Status: <strong id="iotVoltage">230.0 V</strong></div>
+                <div>Flow Status: <strong id="iotFlow">Idle</strong></div>
+            </div>
+            <button class="btn btn-outline" onclick="toggleIoT()" id="iotBtn">Turn ON Bidirectional Current</button>
+        </div>
+
+        <!-- Live Settlements -->
+        <div class="card">
+            <h3 id="txtSettlementsTitle">Live Settlements & Tax Invoices</h3>
+            <div id="tradesList">
+                <p style="color: #9ca3af; font-size: 0.9rem;" id="noTradesTxt">No active settlement records.</p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Billing Invoice Modal -->
+    <div id="payModal" class="overlay hidden">
+        <div class="modal-box">
+            <h3 style="color: var(--primary); margin-top:0;" id="txtModalTitle">Digital Settlement Invoice</h3>
+            <div id="paySummary" style="font-size:0.88rem; color:#374151; line-height:1.6; margin-bottom:1rem;"></div>
+            
+            <div class="form-group">
+                <label id="lblPayChannel">Payment / Settlement Channel</label>
+                <select id="payMethod">
+                    <option value="UPI (GPay / PhonePe / Paytm)">UPI (GPay / PhonePe / Paytm)</option>
+                    <option value="Microgrid Wallet Balance">Microgrid Wallet Balance</option>
+                    <option value="Direct Bank Transfer">Direct Bank Transfer</option>
+                </select>
+            </div>
+
+            <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:1rem;">
+                <button class="btn btn-outline" onclick="closePayModal()" id="btnCloseModal">Close</button>
+                <button class="btn" onclick="confirmPaymentAndDownload()" id="btnDownload">Download Tax Invoice PDF</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const { jsPDF } = window.jspdf;
+    let socket;
+    let currentLang = 'EN';
+
+    let userRole = 'SELLER';
+    let currentUser = null;
+    let activeTradeForPay = null;
+    let ioTInterval = null;
+
+    const i18n = {
+        EN: {
+            langBtn: "தமிழ் (Tamil)",
+            regHeader: "⚡ ShareEnergy.Co",
+            regSub: "Register node to enter microgrid market.",
+            roleLbl: "Select Node Role",
+            nameLbl: "Full Name",
+            addrLbl: "Microgrid Address",
+            nodeLbl: "Node ID",
+            enter: "Enter Market Exchange",
+            tariffTitle: "Government Grid Benchmarks (TANGEDCO)",
+            tariffDesc: "EB Retail Buy Rate: ₹8.00/kWh | Solar Export Feed-in Rate: ₹3.00/kWh",
+            panelTitleSeller: "Publish Solar Energy Offer",
+            panelTitleBuyer: "Request Clean Energy Purchase",
+            qty: "Energy Quantum (kWh)",
+            price: "Target Price per kWh (₹)",
+            gross: "Gross Trade Value:",
+            fee: "Platform Convenience Fee (5%):",
+            netSeller: "Net Seller Payout:",
+            netBuyer: "Total Payable by Buyer:",
+            gainSeller: "Profit vs Gov Export (₹3/kWh):",
+            gainBuyer: "Savings vs Gov Grid (₹8/kWh):",
+            actSeller: "Sell Solar Energy",
+            actBuyer: "Buy Clean Energy",
+            iotTitle: "Bidirectional Smart Meter & Microgrid Regulator",
+            iotDesc: "Simulates live voltage and bi-directional flow. When total voltage or power exceeds circuit limits (> 240V), automatic power factor step-down logic throttles voltage down to 230V.",
+            iotOn: "Turn OFF Bidirectional Current",
+            iotOff: "Turn ON Bidirectional Current",
+            settlements: "Live Settlements & Tax Invoices",
+            modalTitle: "Digital Settlement Invoice",
+            dlBtn: "Download Tax Invoice PDF"
+        },
+        TA: {
+            langBtn: "English",
+            regHeader: "⚡ ஷேர்எனர்ஜி (ShareEnergy.Co)",
+            regSub: "சந்தையில் இணைய உங்கள் முனையத்தை பதிவு செய்யவும்.",
+            roleLbl: "பங்கை தேர்ந்தெடுக்கவும்",
+            nameLbl: "முழு பெயர்",
+            addrLbl: "மின்வலை முகவரி",
+            nodeLbl: "முனை ஐடி (Node ID)",
+            enter: "சந்தையில் நுழைக",
+            tariffTitle: "அரசு மின்வாரிய விகிதங்கள் (TANGEDCO)",
+            tariffDesc: "அரசு மின்சார கொள்முதல்: ₹8.00/யூனிட் | சோலார் ஏற்றுமதி கட்டணம்: ₹3.00/யூனிட்",
+            panelTitleSeller: "சோலார் மின்சார விற்பனை சலுகை",
+            panelTitleBuyer: "சுத்தமான மின்சார கொள்முதல் கோரிக்கை",
+            qty: "மின்சார அளவு (kWh / யூனிட்)",
+            price: "யூனிட் விலை (₹)",
+            gross: "மொத்த வர்த்தக மதிப்பு:",
+            fee: "தள சேவை கட்டணம் (5%):",
+            netSeller: "விற்பனையாளர் பெறும் நிகர பணம்:",
+            netBuyer: "வாங்குபவர் செலுத்த வேண்டிய மொத்த தொகை:",
+            gainSeller: "அரசு ஏற்றுமதியை விட கூடுதல் லாபம் (₹3/யூனிட்):",
+            gainBuyer: "அரசு மின்சாரத்தை விட சேமிப்பு (₹8/யூனிட்):",
+            actSeller: "மின்சாரம் விற்பனை செய்",
+            actBuyer: "மின்சாரம் வாங்கு",
+            iotTitle: "இருதிசை ஸ்மார்ட் மீட்டர் & மின்னழுத்த கட்டுப்படுத்தி",
+            iotDesc: "நேரலை மின்னழுத்தத்தை கண்காணிக்கிறது. மின்னழுத்தம் வரம்பை தாண்டினால் (> 240V), தானியங்கி கட்டுப்படுத்தி 230V ஆக குறைத்து பாதுகாக்கிறது.",
+            iotOn: "இருதிசை மின்னோட்டத்தை நிறுத்து",
+            iotOff: "இருதிசை மின்னோட்டத்தை இயக்கு",
+            settlements: "நேரலை தீர்வுகள் & வரி இன்வாய்ஸ்",
+            modalTitle: "டிஜிட்டல் தீர்வு இன்வாய்ஸ்",
+            dlBtn: "PDF இன்வாய்ஸ் பதிவிறக்கவும்"
+        }
+    };
+
+    function toggleLanguage() {
+        currentLang = currentLang === 'EN' ? 'TA' : 'EN';
+        const t = i18n[currentLang];
+
+        document.getElementById('langBtn').innerText = t.langBtn;
+        document.getElementById('txtRegHeader').innerText = t.regHeader;
+        document.getElementById('txtRegSub').innerText = t.regSub;
+        document.getElementById('txtRoleLbl').innerText = t.roleLbl;
+        document.getElementById('txtNameLbl').innerText = t.nameLbl;
+        document.getElementById('txtAddrLbl').innerText = t.addrLbl;
+        document.getElementById('txtNodeLbl').innerText = t.nodeLbl;
+        document.getElementById('btnEnter').innerText = t.enter;
+
+        document.getElementById('txtTariffTitle').innerText = t.tariffTitle;
+        document.getElementById('txtTariffDesc').innerText = t.tariffDesc;
+
+        document.getElementById('lblQty').innerText = t.qty;
+        document.getElementById('lblPrice').innerText = t.price;
+        document.getElementById('lblGross').innerText = t.gross;
+        document.getElementById('lblFee').innerText = t.fee;
+
+        document.getElementById('txtIotTitle').innerText = t.iotTitle;
+        document.getElementById('txtIotDesc').innerText = t.iotDesc;
+        document.getElementById('txtSettlementsTitle').innerText = t.settlements;
+        document.getElementById('txtModalTitle').innerText = t.modalTitle;
+        document.getElementById('btnDownload').innerText = t.dlBtn;
+
+        updateEstimates();
+    }
+
+    function setRole(role) {
+        userRole = role;
+        const sBtn = document.getElementById('roleSellerBtn');
+        const bBtn = document.getElementById('roleBuyerBtn');
+        
+        if (role === 'SELLER') {
+            sBtn.className = 'role-btn active';
+            bBtn.className = 'role-btn';
+            document.getElementById('regNodeId').value = 'Solar-House-101';
+        } else {
+            sBtn.className = 'role-btn';
+            bBtn.className = 'role-btn active';
+            document.getElementById('regNodeId').value = 'Buyer-House-202';
+        }
+        updateEstimates();
+    }
+
+    function completeRegistration() {
+        const name = document.getElementById('regName').value || 'User';
+        const address = document.getElementById('regAddress').value || 'Madurai';
+        const nodeId = document.getElementById('regNodeId').value || 'Node-01';
+
+        currentUser = { name, address, nodeId, role: userRole };
+
+        if (userRole === 'SELLER') {
+            document.body.className = 'theme-seller';
+            document.getElementById('iotCard').classList.remove('hidden');
+        } else {
+            document.body.className = 'theme-buyer';
+            document.getElementById('iotCard').classList.add('hidden');
+        }
+
+        document.getElementById('userBadge').innerText = `${name} (${userRole}: ${nodeId})`;
+        document.getElementById('onboardOverlay').classList.add('hidden');
+        updateEstimates();
+        connectWS();
+    }
+
+    function updateEstimates() {
+        const t = i18n[currentLang];
+        const qty = parseFloat(document.getElementById('tradeQty').value) || 0;
+        const price = parseFloat(document.getElementById('tradePrice').value) || 0;
+        const gross = qty * price;
+        const fee = gross * 0.05;
+
+        document.getElementById('estGross').innerText = `₹${gross.toFixed(2)}`;
+        document.getElementById('estFee').innerText = `₹${fee.toFixed(2)}`;
+
+        if (userRole === 'SELLER') {
+            document.getElementById('panelTitle').innerText = t.panelTitleSeller;
+            document.getElementById('actionBtn').innerText = t.actSeller;
+            document.getElementById('estNetLabel').innerText = t.netSeller;
+
+            const netPayout = gross - fee;
+            document.getElementById('estNetVal').innerText = `₹${netPayout.toFixed(2)}`;
+
+            // Gov export comparison: ₹3.00/kWh
+            const govEarning = qty * 3.00;
+            const extraProfit = netPayout - govEarning;
+            document.getElementById('lblProfitGain').innerText = t.gainSeller;
+            document.getElementById('estGovGain').innerText = `+₹${extraProfit.toFixed(2)}`;
+        } else {
+            document.getElementById('panelTitle').innerText = t.panelTitleBuyer;
+            document.getElementById('actionBtn').innerText = t.actBuyer;
+            document.getElementById('estNetLabel').innerText = t.netBuyer;
+
+            const totalPay = gross + fee;
+            document.getElementById('estNetVal').innerText = `₹${totalPay.toFixed(2)}`;
+
+            // Gov buy comparison: ₹8.00/kWh
+            const govCost = qty * 8.00;
+            const savings = govCost - totalPay;
+            document.getElementById('lblProfitGain').innerText = t.gainBuyer;
+            document.getElementById('estGovGain').innerText = `+₹${savings.toFixed(2)}`;
+        }
+    }
+
+    document.getElementById('tradeQty').addEventListener('input', updateEstimates);
+    document.getElementById('tradePrice').addEventListener('input', updateEstimates);
+
+    function connectWS() {
+        socket = new WebSocket(`ws://${window.location.host}`);
+
+        socket.onopen = () => console.log("WebSocket connected.");
+
+        socket.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'TRADE_MATCHED') {
+                handleTradeNotification(msg.data);
+            }
+        };
+
+        socket.onclose = () => setTimeout(connectWS, 2000);
+    }
+
+    async function submitOrder() {
+        const qty = document.getElementById('tradeQty').value;
+        const price = document.getElementById('tradePrice').value;
+
+        showAlert(`Order published: ${userRole} ${qty} kWh @ ₹${price}/kWh`);
+
+        await fetch('/api/order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId: currentUser.nodeId,
+                type: userRole,
+                qty,
+                price
+            })
+        });
+    }
+
+    function handleTradeNotification(trade) {
+        const isSeller = trade.seller === currentUser.nodeId;
+        const isBuyer = trade.buyer === currentUser.nodeId;
+
+        // Custom notifications for both Seller and Buyer
+        if (isSeller) {
+            showAlert(`🎉 TRADE COMPLETED! You SOLD ${trade.qty} kWh to ${trade.buyer}. Net Received: ₹${trade.sellerPayout} (Profit vs Gov Export: +₹${trade.sellerGainVsGov})`);
+        } else if (isBuyer) {
+            showAlert(`⚡ TRADE COMPLETED! You BOUGHT ${trade.qty} kWh from ${trade.seller}. Total Paid: ₹${trade.buyerTotal} (Savings vs Gov Grid: +₹${trade.buyerSavingsVsGov})`);
+        }
+
+        addTradeToUI(trade);
+    }
+
+    function showAlert(text) {
+        const banner = document.getElementById('alertBanner');
+        banner.innerText = text;
+        banner.classList.remove('hidden');
+    }
+
+    function addTradeToUI(trade) {
+        const list = document.getElementById('tradesList');
+        const noTxt = document.getElementById('noTradesTxt');
+        if (noTxt) noTxt.remove();
+
+        const item = document.createElement('div');
+        item.style.cssText = 'background:var(--accent-bg); border-left:4px solid var(--primary); padding:0.75rem; border-radius:6px; margin-bottom:0.5rem; display:flex; justify-content:space-between; align-items:center;';
+        
+        const isSeller = currentUser.role === 'SELLER';
+        const gainText = isSeller 
+            ? `Net Received: ₹${trade.sellerPayout} (+₹${trade.sellerGainVsGov} vs Gov Feed-in)`
+            : `Total Paid: ₹${trade.buyerTotal} (+₹${trade.buyerSavingsVsGov} Savings vs EB Grid)`;
+
+        item.innerHTML = `
+            <div>
+                <strong>${trade.tradeId}</strong> <small>(${trade.timestamp})</small><br>
+                <small>Seller: ${trade.seller} ➔ Buyer: ${trade.buyer}</small><br>
+                <span style="color:var(--primary); font-size:0.85rem; font-weight:bold;">${gainText}</span>
+            </div>
+            <div style="text-align:right;">
+                <strong>${trade.qty} kWh @ ₹${trade.clearingPrice}</strong><br>
+                <button class="btn" style="padding:0.25rem 0.5rem; font-size:0.75rem; margin-top:0.25rem;" onclick='openPayModal(${JSON.stringify(trade)})'>View & Download Invoice</button>
+            </div>
+        `;
+        list.prepend(item);
+    }
+
+    function openPayModal(trade) {
+        activeTradeForPay = trade;
+        const isSeller = currentUser.role === 'SELLER';
+
+        document.getElementById('paySummary').innerHTML = `
+            <strong>Transaction Ref:</strong> ${trade.tradeId}<br>
+            <strong>Energy Quantum:</strong> ${trade.qty} kWh @ ₹${trade.clearingPrice}/kWh<br>
+            <strong>Gross Market Value:</strong> ₹${trade.grossValue}<br>
+            <strong>ShareEnergy Platform Fee (5%):</strong> ₹${isSeller ? trade.sellerFee : trade.buyerFee}<br>
+            <hr style="border:0; border-top:1px solid #d1d5db; margin:0.5rem 0;">
+            <strong>${isSeller ? 'Net Seller Payout:' : 'Total Amount Paid:'}</strong> 
+            <span style="color:var(--primary); font-weight:700; font-size:1.1rem;">₹${isSeller ? trade.sellerPayout : trade.buyerTotal}</span><br>
+            <div style="margin-top:0.5rem; padding:0.5rem; background:#d1fae5; border-radius:4px; color:#065f46; font-weight:bold;">
+                ${isSeller 
+                    ? `Gov Grid Comparison: Earned ₹${trade.sellerGainVsGov} more than Gov Feed-in Tariff (₹3.00/kWh).` 
+                    : `Gov Grid Comparison: Saved ₹${trade.buyerSavingsVsGov} compared to EB Grid Rate (₹8.00/kWh).`}
+            </div>
+        `;
+        document.getElementById('payModal').classList.remove('hidden');
+    }
+
+    function closePayModal() {
+        document.getElementById('payModal').classList.add('hidden');
+    }
+
+    function confirmPaymentAndDownload() {
+        const method = document.getElementById('payMethod').value;
+        generatePDF(activeTradeForPay, method);
+        closePayModal();
+    }
+
+    function generatePDF(trade, paymentMethod) {
+        const doc = new jsPDF();
+        const isSeller = currentUser.role === 'SELLER';
+
+        doc.setFillColor(isSeller ? 5 : 37, isSeller ? 150 : 99, isSeller ? 105 : 235);
+        doc.rect(0, 0, 210, 32, 'F');
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(16);
+        doc.text("ShareEnergy.Co — Tax Invoice & Settlement Record", 14, 20);
+
+        doc.setTextColor(31, 41, 55);
+        doc.setFontSize(10);
+        doc.text(`Invoice ID: ${trade.tradeId}`, 14, 45);
+        doc.text(`Timestamp: ${trade.timestamp}`, 14, 52);
+        doc.text(`Node Owner: ${currentUser.name} (${currentUser.role})`, 14, 59);
+        doc.text(`Microgrid Location: ${currentUser.address}`, 14, 66);
+
+        doc.line(14, 72, 196, 72);
+
+        doc.text(`Seller Node: ${trade.seller}`, 14, 82);
+        doc.text(`Buyer Node: ${trade.buyer}`, 14, 89);
+        doc.text(`Energy Quantum Cleared: ${trade.qty} kWh`, 14, 96);
+        doc.text(`Market Clearing Price: Rs. ${trade.clearingPrice} / kWh`, 14, 103);
+        doc.text(`Gross Trade Value: Rs. ${trade.grossValue}`, 14, 110);
+        doc.text(`Platform Fee (5%): Rs. ${isSeller ? trade.sellerFee : trade.buyerFee}`, 14, 117);
+        doc.text(`Payment Settlement Method: ${paymentMethod}`, 14, 124);
+
+        doc.line(14, 130, 196, 130);
+
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        doc.text(`${isSeller ? 'Net Seller Payout Received:' : 'Total Amount Paid:'} Rs. ${isSeller ? trade.sellerPayout : trade.buyerTotal}`, 14, 140);
+
+        doc.setFontSize(10);
+        doc.setTextColor(5, 150, 105);
+        if (isSeller) {
+            doc.text(`Financial Advantage: +Rs. ${trade.sellerGainVsGov} profit above Gov Feed-in Tariff (Rs. 3.00/kWh)`, 14, 150);
+        } else {
+            doc.text(`Financial Advantage: +Rs. ${trade.buyerSavingsVsGov} direct savings vs TANGEDCO EB Tariff (Rs. 8.00/kWh)`, 14, 150);
+        }
+
+        doc.save(`Invoice_${trade.tradeId}.pdf`);
+    }
+
+    // Dynamic Bidirectional Voltage Throttling Logic
+    function toggleIoT() {
+        const btn = document.getElementById('iotBtn');
+        const vEl = document.getElementById('iotVoltage');
+        const fEl = document.getElementById('iotFlow');
+        const t = i18n[currentLang];
+
+        if (ioTInterval) {
+            clearInterval(ioTInterval);
+            ioTInterval = null;
+            btn.innerText = t.iotOff;
+            vEl.innerText = '230.0 V';
+            fEl.innerText = 'Idle';
+        } else {
+            btn.innerText = t.iotOn;
+            fEl.innerText = 'Bidirectional Active ⇄';
+
+            ioTInterval = setInterval(() => {
+                // Simulate voltage fluctuation (225V to 248V)
+                let simulatedVoltage = (225 + Math.random() * 23).toFixed(1);
+
+                if (parseFloat(simulatedVoltage) > 240.0) {
+                    vEl.innerHTML = `<span style="color:red;">${simulatedVoltage}V ⚡ Limit Exceeded! Throttling...</span>`;
+                    setTimeout(() => {
+                        vEl.innerHTML = `<span style="color:green;">230.0 V (Step-down Stabilized)</span>`;
+                    }, 1000);
+                } else {
+                    vEl.innerHTML = `<span style="color:green;">${simulatedVoltage} V (Normal)</span>`;
+                }
+            }, 3000);
+        }
+    }
+</script>
+
+</body>
+</html>
